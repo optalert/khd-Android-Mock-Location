@@ -12,6 +12,7 @@ public class HmsMockLocationProviderManager {
 
     private static FusedLocationProviderClient client = null;
     private static int advanceTimeMillis              = 45000;
+    private AtomicReference<Location> previousMockLocation;
 
     protected static void startMockingLocation(Context context) {
         if (HuaweiApiAvailability.getInstance().isHuaweiMobileServicesAvailable(context) != ConnectionResult.SUCCESS)
@@ -31,7 +32,7 @@ public class HmsMockLocationProviderManager {
     protected static void exec(double lat, double lon) {
         if (client != null) {
             try {
-                Location mockLocation = MockLocationProvider.getLocation(lat, lon, advanceTimeMillis);
+                Location mockLocation = MockLocationProvider.getLocation(previousMockLocation, lat, lon, advanceTimeMillis);
                 client.setMockLocation(mockLocation);
             }
             catch (Exception e) {}
