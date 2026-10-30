@@ -40,6 +40,12 @@
         android:theme="@style/app_theme"
         android:allowBackup="false">
 
+        <!-- DUMP is held by adb shell, but not ordinary third-party apps. -->
+        <receiver
+            android:name=".receiver.TripSimulationReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP" />
+
         <service
             android:name=".service.LocationService"
             android:foregroundServiceType="location"

@@ -257,6 +257,70 @@ __Example__:
 
 - - - -
 
+#### Trip simulation over ADB
+
+`TripSimulationReceiver` accepts explicit broadcasts to configure the values shown in
+`TripSimulationActivity`, start a trip, update it, or stop location mocking. It is
+protected by `android.permission.DUMP`, which ADB shell holds, so ordinary apps
+cannot control the trip through this receiver.
+
+Select this app as the mock location app in Android Developer options and open it
+once to grant its location permissions. If Android blocks starting a location
+foreground service from the background, keep the app visible while sending START
+(or grant background location access where available). The receiver does not open
+permission dialogs. With multiple devices attached, add `-s SERIAL` after `adb`.
+
+Configure without starting (when stopped):
+
+```sh
+adb shell am broadcast \
+  -n com.github.warren_bank.mock_location/.receiver.TripSimulationReceiver \
+  -a com.github.warren_bank.mock_location.trip.UPDATE \
+  --es origin '-37.8136,144.9631' \
+  --es destination '-37.8183,144.9671' \
+  --ei duration_seconds 120
+```
+
+Start with the saved values:
+
+```sh
+adb shell am broadcast \
+  -n com.github.warren_bank.mock_location/.receiver.TripSimulationReceiver \
+  -a com.github.warren_bank.mock_location.trip.START
+```
+
+Update any subset later; omitted values retain their saved settings:
+
+```sh
+adb shell am broadcast \
+  -n com.github.warren_bank.mock_location/.receiver.TripSimulationReceiver \
+  -a com.github.warren_bank.mock_location.trip.UPDATE \
+  --es destination '-37.8240,144.9780' \
+  --ei duration_seconds 60
+```
+
+UPDATE saves the configuration while stopped. While location mocking is running,
+it restarts the trip from the configured origin with the updated values and the
+full configured duration, matching the activity's Update button. START also
+accepts the same optional extras, allowing configuration and start in one command.
+STOP stops location mocking (including fixed-position mode) and retains the saved
+trip values:
+
+```sh
+adb shell am broadcast \
+  -n com.github.warren_bank.mock_location/.receiver.TripSimulationReceiver \
+  -a com.github.warren_bank.mock_location.trip.STOP
+```
+
+Coordinates use `latitude,longitude` with latitude in `[-90,90]` and longitude in
+`[-180,180]`. Duration must be a positive integer in seconds, passed with `--ei`.
+Invalid commands are rejected before changing settings or the running trip.
+The broadcast result includes a status message (`result=-1` for an accepted
+command, `result=0` for an error); service startup remains asynchronous. Errors
+are also logged under the `TripSimulationReceiver` tag.
+
+- - - -
+
 #### Legal:
 
 * copyright: [Warren Bank](https://github.com/warren-bank)

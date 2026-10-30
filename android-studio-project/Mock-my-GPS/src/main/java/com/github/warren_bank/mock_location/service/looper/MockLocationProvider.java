@@ -10,6 +10,8 @@ import android.os.Build;
 import android.os.SystemClock;
 import android.util.Log;
 
+import org.json.JSONObject;
+
 import java.util.concurrent.atomic.AtomicReference;
 
 public class MockLocationProvider {
@@ -98,16 +100,27 @@ public class MockLocationProvider {
         mockLocation.setAltitude(3F);
         mockLocation.setTime(time);
 
-        mockLocation.setSpeed(0.01F);
+        float speed;
         if (previousLocation == null || (time - previousLocation.getTime() >= 1000) ) {
 //            Log.d("Kolya", "prev location is null or older than 1 second");
-            mockLocation.setSpeed(0.01F);
+            speed = 0.01F;
         } else {
 //            Log.d("Kolya", "calculating speed");
-            float speed = (float) calculateSpeed(previousLocation.getLatitude(), previousLocation.getLongitude(), previousLocation.getTime(), lat, lon, time);
-//            Log.d("Kolya", "speed = " + speed);
-            mockLocation.setSpeed( speed );
+            speed = (float) calculateSpeed(previousLocation.getLatitude(), previousLocation.getLongitude(), previousLocation.getTime(), lat, lon, time);
         }
+
+        if (providerName.equals("gps")) {
+            try {
+                JSONObject gpsLog = new JSONObject();
+                gpsLog.put("lat", lat);
+                gpsLog.put("lon", lon);
+                gpsLog.put("speed", speed);
+                Log.d("MockGps", "newLocation=" + gpsLog);
+            } catch (Exception e) {
+                Log.e("MockGps", "getLocation(): Error: " + e);
+            }
+        }
+        mockLocation.setSpeed( speed );
 
         mockLocation.setBearing(1F);
         mockLocation.setAccuracy(3F);

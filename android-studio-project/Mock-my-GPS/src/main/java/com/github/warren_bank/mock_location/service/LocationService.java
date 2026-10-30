@@ -20,6 +20,7 @@ import android.view.View;
 import android.widget.RemoteViews;
 
 public class LocationService extends Service {
+    public static final String ACTION_STATE_CHANGED = "com.github.warren_bank.mock_location.LOCATION_STATE_CHANGED";
     private final static int NOTIFICATION_ID          = 1;
     private final static String ACTION_START          = "START";
     private final static String ACTION_STOP           = "STOP";
@@ -203,12 +204,14 @@ public class LocationService extends Service {
             case ACTION_START: {
                 running = true;
                 LTM.start(processIntentExtras(intent));
+                notifyStateChanged(this);
                 break;
             }
             case ACTION_STOP: {
                 running = false;
                 LTM.stop();
                 stopSelf();
+                notifyStateChanged(this);
                 break;
             }
             case ACTION_PREFS: {
@@ -289,6 +292,10 @@ public class LocationService extends Service {
 
     public static boolean isStarted() {
         return running;
+    }
+
+    public static void notifyStateChanged(Context context) {
+        context.sendBroadcast(new Intent(ACTION_STATE_CHANGED).setPackage(context.getPackageName()));
     }
 
     public static LocationThreadManager getLocationThreadManager() {

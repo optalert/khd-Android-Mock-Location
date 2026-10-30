@@ -9,6 +9,11 @@ import com.github.warren_bank.mock_location.ui.interfaces.RuntimePermissionsList
 import com.github.warren_bank.mock_location.ui.interfaces.RuntimePermissionsRequester;
 
 import android.app.Activity;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.os.Build;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -30,6 +35,13 @@ public class TripSimulationActivity extends Activity implements RuntimePermissio
     private Button   button_update;
 
     private short diff_fields = 0;
+
+    private final BroadcastReceiver tripStateReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            reset();
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -111,7 +123,7 @@ public class TripSimulationActivity extends Activity implements RuntimePermissio
                     int modifiedTripDuration = Integer.parseInt(trip_duration, 10);
                     short mask = (1 << 2);  // 0x0004
 
-                    if (originalTripDuration != modifiedTripDuration) {
+                    if (originalTripDuration == modifiedTripDuration) {
                         // flip bit[2] to 0
                         diff_fields &= ~mask;
                     }
@@ -158,6 +170,20 @@ public class TripSimulationActivity extends Activity implements RuntimePermissio
                 catch(Exception e) {}
             }
         });
+
+        IntentFilter filter = new IntentFilter(LocationService.ACTION_STATE_CHANGED);
+        if (Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(tripStateReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        }
+        else {
+            registerReceiver(tripStateReceiver, filter);
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        unregisterReceiver(tripStateReceiver);
+        super.onDestroy();
     }
 
     @Override
@@ -167,6 +193,10 @@ public class TripSimulationActivity extends Activity implements RuntimePermissio
     }
 
     private void reset() {
+        originalLocOrigin      = SharedPrefs.getTripOrigin(this);
+        originalLocDestination = SharedPrefs.getTripDestination(this);
+        originalTripDuration   = SharedPrefs.getTripDuration(this);
+
         input_trip_origin.setText(originalLocOrigin.toString());
         input_trip_destination.setText(originalLocDestination.toString());
         input_trip_duration.setText(Integer.toString(originalTripDuration, 10));
@@ -183,9 +213,10 @@ public class TripSimulationActivity extends Activity implements RuntimePermissio
             label_trip_destination.setVisibility(View.VISIBLE);
         }
 
-        if (LocationService.isStarted())
-            button_toggle_state.setText(R.string.label_button_stop);
+        button_toggle_state.setText(LocationService.isStarted()
+            ? R.string.label_button_stop : R.string.label_button_start);
 
+        diff_fields = 0;
         button_update.setVisibility(View.GONE);
     }
 
@@ -223,22 +254,10 @@ public class TripSimulationActivity extends Activity implements RuntimePermissio
 
         LocationService.doStart(TripSimulationActivity.this, true, modifiedLocOrigin, modifiedLocDestination, modifiedTripDuration);
 
-        short mask;
-
-        mask = (1 << 0);
-        if ((diff_fields & mask) == mask) {
-            SharedPrefs.putTripOrigin(TripSimulationActivity.this, modifiedLocOrigin);
-        }
-
-        mask = (1 << 1);
-        if ((diff_fields & mask) == mask) {
-            SharedPrefs.putTripDestination(TripSimulationActivity.this, modifiedLocDestination);
-        }
-
-        mask = (1 << 2);
-        if ((diff_fields & mask) == mask) {
-            SharedPrefs.putTripDuration(TripSimulationActivity.this, modifiedTripDuration);
-        }
+        android.content.SharedPreferences.Editor editor = SharedPrefs.getSharedPreferencesEditor(this);
+        SharedPrefs.putTripOrigin(editor, this, modifiedLocOrigin, false);
+        SharedPrefs.putTripDestination(editor, this, modifiedLocDestination, false);
+        SharedPrefs.putTripDuration(editor, this, modifiedTripDuration, true);
 
         originalLocOrigin      = modifiedLocOrigin;
         originalLocDestination = modifiedLocDestination;
